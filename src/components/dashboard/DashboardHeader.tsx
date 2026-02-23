@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { User as SupabaseUser } from "@supabase/supabase-js";
+import DemoSeedButton from "./DemoSeedButton";
 
 export default function DashboardHeader({ user }: { user: SupabaseUser }) {
   const router = useRouter();
@@ -43,8 +44,8 @@ export default function DashboardHeader({ user }: { user: SupabaseUser }) {
 
   return (
     <header className="h-16 border-b border-white/[0.05] flex items-center justify-between px-6 bg-[#050a14]/80 backdrop-blur-xl flex-shrink-0">
-      {/* Left slot — page title comes from children or can be dynamic */}
-      <div />
+      {/* Left: demo seed button */}
+      <DemoSeedButton />
 
       {/* Right: actions */}
       <div className="flex items-center gap-3">

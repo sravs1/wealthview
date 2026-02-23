@@ -9,97 +9,45 @@ import {
   ArrowRight,
   BarChart2,
   DollarSign,
+  FlaskConical,
 } from "lucide-react";
 
-async function getConnectedExchangesCount(userId: string) {
+const MOCK_HOLDINGS = [
+  { symbol: "BTC",  name: "Bitcoin",     value: 18421.00, change: +3.2,  up: true,  exchange: "Coinbase" },
+  { symbol: "AAPL", name: "Apple Inc.",  value: 12350.00, change: +0.4,  up: true,  exchange: "Alpaca" },
+  { symbol: "ETH",  name: "Ethereum",    value: 9840.00,  change: +1.8,  up: true,  exchange: "Coinbase" },
+  { symbol: "SOL",  name: "Solana",      value: 7221.50,  change: -0.9,  up: false, exchange: "Binance" },
+];
+const MOCK_TOTAL       = 47832.50;
+const MOCK_CHANGE      = +1284.20;
+const MOCK_CHANGE_PCT  = +2.76;
+
+async function getConnectedExchanges(userId: string) {
   const supabase = await createClient();
-  const { count } = await supabase
+  const { data } = await supabase
     .from("connected_exchanges")
-    .select("*", { count: "exact", head: true })
+    .select("exchange_name, exchange_slug")
     .eq("user_id", userId)
     .eq("is_active", true);
-  return count ?? 0;
+  return data ?? [];
+}
+
+function fmt(n: number) {
+  return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
 }
 
 export default async function DashboardPage() {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
-  const exchangeCount = await getConnectedExchangesCount(user.id);
+  const exchanges = await getConnectedExchanges(user.id);
+  const hasExchanges = exchanges.length > 0;
 
   const displayName =
     user.user_metadata?.full_name?.split(" ")[0] ||
     user.email?.split("@")[0] ||
     "there";
-
-  const stats = [
-    {
-      label: "Total Portfolio Value",
-      value: exchangeCount > 0 ? "$0.00" : "—",
-      sub: exchangeCount > 0 ? "Connect exchanges to sync" : "Connect an exchange to start",
-      icon: DollarSign,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-    },
-    {
-      label: "Today's Change",
-      value: "—",
-      sub: "No data yet",
-      icon: TrendingUp,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
-    },
-    {
-      label: "Connected Exchanges",
-      value: String(exchangeCount),
-      sub: exchangeCount === 0 ? "None connected yet" : `${exchangeCount} active`,
-      icon: Link2,
-      color: "text-violet-400",
-      bg: "bg-violet-500/10",
-    },
-    {
-      label: "AI Insights",
-      value: "—",
-      sub: "Connect portfolio first",
-      icon: Zap,
-      color: "text-amber-400",
-      bg: "bg-amber-500/10",
-    },
-  ];
-
-  const quickActions = [
-    {
-      title: "Connect an Exchange",
-      description: "Link your crypto & brokerage accounts to start tracking.",
-      href: "/dashboard/exchanges",
-      icon: Link2,
-      color: "text-emerald-400",
-      bg: "bg-emerald-500/10",
-      border: "border-emerald-500/20",
-    },
-    {
-      title: "View Portfolio",
-      description: "See your full asset allocation across all connected accounts.",
-      href: "/dashboard/portfolio",
-      icon: BarChart2,
-      color: "text-blue-400",
-      bg: "bg-blue-500/10",
-      border: "border-blue-500/20",
-    },
-    {
-      title: "AI Insights",
-      description: "Get personalised suggestions tailored to your strategy.",
-      href: "/dashboard/insights",
-      icon: Zap,
-      color: "text-violet-400",
-      bg: "bg-violet-500/10",
-      border: "border-violet-500/20",
-    },
-  ];
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
@@ -113,71 +61,155 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-        {stats.map(({ label, value, sub, icon: Icon, color, bg }) => (
-          <div key={label} className="glass rounded-2xl p-5">
-            <div className="flex items-start justify-between mb-3">
-              <div className={`w-9 h-9 ${bg} rounded-xl flex items-center justify-center`}>
-                <Icon size={18} className={color} />
-              </div>
-            </div>
-            <p className="text-2xl font-bold text-white mb-0.5">{value}</p>
-            <p className="text-slate-500 text-xs">{label}</p>
-            <p className="text-slate-600 text-xs mt-0.5">{sub}</p>
+      {hasExchanges ? (
+        <>
+          {/* Demo notice */}
+          <div className="flex items-center gap-2.5 glass rounded-xl px-4 py-3 border border-amber-500/20 bg-amber-500/[0.04] mb-6">
+            <FlaskConical size={15} className="text-amber-400 flex-shrink-0" />
+            <p className="text-amber-300 text-xs">
+              <span className="font-semibold">Demo mode —</span> portfolio values below are sample data.
+              Live sync with exchange APIs is coming soon.
+            </p>
           </div>
-        ))}
-      </div>
 
-      {/* Quick actions */}
-      <div className="mb-8">
-        <h2 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-4">
-          Quick Actions
-        </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {quickActions.map(({ title, description, href, icon: Icon, color, bg, border }) => (
-            <Link
-              key={href}
-              href={href}
-              className={`glass rounded-2xl p-5 border ${border} hover:bg-white/[0.06] transition-all duration-200 group`}
-            >
-              <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center mb-4`}>
-                <Icon size={20} className={color} />
+          {/* Stats */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+            <div className="glass rounded-2xl p-5">
+              <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-3">
+                <DollarSign size={18} className="text-emerald-400" />
               </div>
-              <h3 className="text-white font-semibold mb-1.5">{title}</h3>
-              <p className="text-slate-500 text-sm leading-relaxed mb-4">{description}</p>
-              <div className={`flex items-center gap-1.5 text-xs font-medium ${color}`}>
-                Get started
-                <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
-              </div>
-            </Link>
-          ))}
-        </div>
-      </div>
-
-      {/* Empty state notice */}
-      {exchangeCount === 0 && (
-        <div className="glass rounded-2xl p-6 border border-emerald-500/15 bg-emerald-500/[0.03]">
-          <div className="flex items-start gap-4">
-            <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
-              <TrendingUp size={20} className="text-emerald-400" />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-white font-semibold mb-1">Start by connecting an exchange</h3>
-              <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                Connect your Coinbase, Binance, Kraken, or other accounts to see your real portfolio
-                value, holdings, and get AI-powered insights.
+              <p className="text-2xl font-bold text-white mb-0.5">{fmt(MOCK_TOTAL)}</p>
+              <p className="text-slate-500 text-xs">Total Portfolio Value</p>
+              <p className="text-emerald-400 text-xs mt-1 flex items-center gap-1">
+                <TrendingUp size={11} /> +{fmt(MOCK_CHANGE)} ({MOCK_CHANGE_PCT}%) today
               </p>
-              <Link
-                href="/dashboard/exchanges"
-                className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]"
-              >
-                <Link2 size={15} />
-                Connect an exchange
+            </div>
+            <div className="glass rounded-2xl p-5">
+              <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-3">
+                <TrendingUp size={18} className="text-emerald-400" />
+              </div>
+              <p className="text-2xl font-bold text-white mb-0.5">+{fmt(MOCK_CHANGE)}</p>
+              <p className="text-slate-500 text-xs">Today&apos;s Change</p>
+              <p className="text-emerald-400 text-xs mt-1">+{MOCK_CHANGE_PCT}%</p>
+            </div>
+            <div className="glass rounded-2xl p-5">
+              <div className="w-9 h-9 bg-violet-500/10 rounded-xl flex items-center justify-center mb-3">
+                <Link2 size={18} className="text-violet-400" />
+              </div>
+              <p className="text-2xl font-bold text-white mb-0.5">{exchanges.length}</p>
+              <p className="text-slate-500 text-xs">Connected Exchanges</p>
+              <p className="text-slate-600 text-xs mt-1">{exchanges.map(e => e.exchange_name).join(", ")}</p>
+            </div>
+            <div className="glass rounded-2xl p-5">
+              <div className="w-9 h-9 bg-amber-500/10 rounded-xl flex items-center justify-center mb-3">
+                <Zap size={18} className="text-amber-400" />
+              </div>
+              <p className="text-2xl font-bold text-white mb-0.5">3</p>
+              <p className="text-slate-500 text-xs">AI Insights Ready</p>
+              <Link href="/dashboard/insights" className="text-amber-400 text-xs mt-1 flex items-center gap-1 hover:text-amber-300 transition-colors">
+                View insights <ArrowRight size={11} />
               </Link>
             </div>
           </div>
-        </div>
+
+          {/* Top holdings */}
+          <div className="glass rounded-2xl p-6 mb-6">
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-white font-semibold">Top Holdings</h2>
+              <Link href="/dashboard/portfolio" className="text-emerald-400 hover:text-emerald-300 text-xs transition-colors flex items-center gap-1">
+                View all <ArrowRight size={12} />
+              </Link>
+            </div>
+            <div className="space-y-3">
+              {MOCK_HOLDINGS.map((h) => (
+                <div key={h.symbol} className="flex items-center gap-4">
+                  <div className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-[11px] font-bold">{h.symbol.slice(0, 2)}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <span className="text-white text-sm font-medium">{h.symbol}</span>
+                      <span className="text-white text-sm font-medium">{fmt(h.value)}</span>
+                    </div>
+                    <div className="flex items-center justify-between mt-0.5">
+                      <span className="text-slate-500 text-xs">{h.name} · {h.exchange}</span>
+                      <span className={`text-xs flex items-center gap-0.5 ${h.up ? "text-emerald-400" : "text-rose-400"}`}>
+                        {h.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                        {h.up ? "+" : ""}{h.change}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick actions */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Link href="/dashboard/portfolio" className="glass rounded-2xl p-5 border border-blue-500/20 hover:bg-white/[0.06] transition-all group">
+              <div className="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center mb-4">
+                <BarChart2 size={20} className="text-blue-400" />
+              </div>
+              <h3 className="text-white font-semibold mb-1">Full Portfolio View</h3>
+              <p className="text-slate-500 text-sm mb-4">See all holdings and allocation breakdown.</p>
+              <span className="text-blue-400 text-xs flex items-center gap-1 font-medium">
+                Open portfolio <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </Link>
+            <Link href="/dashboard/insights" className="glass rounded-2xl p-5 border border-violet-500/20 hover:bg-white/[0.06] transition-all group">
+              <div className="w-10 h-10 bg-violet-500/10 rounded-xl flex items-center justify-center mb-4">
+                <Zap size={20} className="text-violet-400" />
+              </div>
+              <h3 className="text-white font-semibold mb-1">AI Insights</h3>
+              <p className="text-slate-500 text-sm mb-4">Get personalised suggestions for your portfolio.</p>
+              <span className="text-violet-400 text-xs flex items-center gap-1 font-medium">
+                View insights <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+              </span>
+            </Link>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* Stats — empty state */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+            {[
+              { label: "Total Portfolio Value", icon: DollarSign, color: "text-emerald-400", bg: "bg-emerald-500/10" },
+              { label: "Today's Change",        icon: TrendingUp,  color: "text-blue-400",   bg: "bg-blue-500/10" },
+              { label: "Connected Exchanges",   icon: Link2,       color: "text-violet-400", bg: "bg-violet-500/10" },
+              { label: "AI Insights",           icon: Zap,         color: "text-amber-400",  bg: "bg-amber-500/10" },
+            ].map(({ label, icon: Icon, color, bg }) => (
+              <div key={label} className="glass rounded-2xl p-5">
+                <div className={`w-9 h-9 ${bg} rounded-xl flex items-center justify-center mb-3`}>
+                  <Icon size={18} className={color} />
+                </div>
+                <p className="text-2xl font-bold text-white mb-0.5">—</p>
+                <p className="text-slate-500 text-xs">{label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="glass rounded-2xl p-6 border border-emerald-500/15 bg-emerald-500/[0.03]">
+            <div className="flex items-start gap-4">
+              <div className="w-10 h-10 bg-emerald-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <TrendingUp size={20} className="text-emerald-400" />
+              </div>
+              <div className="flex-1">
+                <h3 className="text-white font-semibold mb-1">Start by connecting an exchange</h3>
+                <p className="text-slate-400 text-sm leading-relaxed mb-4">
+                  Connect your Coinbase, Binance, Kraken, or other accounts to see your real portfolio
+                  value, holdings, and get AI-powered insights.
+                </p>
+                <Link
+                  href="/dashboard/exchanges"
+                  className="inline-flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-semibold px-5 py-2.5 rounded-xl transition-all duration-200 hover:shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                >
+                  <Link2 size={15} />
+                  Connect an exchange
+                </Link>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </div>
   );

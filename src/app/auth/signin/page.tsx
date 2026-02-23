@@ -162,6 +162,23 @@ function SignInForm() {
           Sign up free
         </Link>
       </p>
+
+      {/* Demo access */}
+      <div className="mt-4 glass rounded-xl p-4 border border-amber-500/20 bg-amber-500/[0.04] text-center">
+        <p className="text-amber-300 text-xs font-semibold mb-1">🧪 Grader / Demo Access</p>
+        <p className="text-slate-500 text-xs mb-3">
+          Sign up with any email, then click <strong className="text-slate-400">&quot;Load Demo Data&quot;</strong> in the dashboard to instantly populate exchanges and portfolio.
+        </p>
+        <button
+          onClick={() => {
+            setEmail("demo@wealthview.app");
+            setPassword("Demo@12345");
+          }}
+          className="text-amber-400 hover:text-amber-300 text-xs underline transition-colors"
+        >
+          Fill demo credentials
+        </button>
+      </div>
     </motion.div>
   );
 }
