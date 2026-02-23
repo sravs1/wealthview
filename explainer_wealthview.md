@@ -14,7 +14,7 @@
 
 ## Links
 
-- **Live deployment:** https://wealthview-biyr.vercel.app/
+- **Live deployment:** https://wealthview-biyr-61neemg8f-sravs1s-projects.vercel.app/
 - **GitHub repository:** https://github.com/sravs1/wealthview
 
 ---
