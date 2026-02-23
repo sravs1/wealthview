@@ -11,6 +11,7 @@ import {
   DollarSign,
   FlaskConical,
 } from "lucide-react";
+import { fetchAlpacaPortfolio } from "@/lib/exchanges/alpaca";
 
 const MOCK_HOLDINGS = [
   { symbol: "BTC",  name: "Bitcoin",     value: 18421.00, change: +3.2,  up: true,  exchange: "Coinbase" },
@@ -18,22 +19,16 @@ const MOCK_HOLDINGS = [
   { symbol: "ETH",  name: "Ethereum",    value: 9840.00,  change: +1.8,  up: true,  exchange: "Coinbase" },
   { symbol: "SOL",  name: "Solana",      value: 7221.50,  change: -0.9,  up: false, exchange: "Binance" },
 ];
-const MOCK_TOTAL       = 47832.50;
-const MOCK_CHANGE      = +1284.20;
-const MOCK_CHANGE_PCT  = +2.76;
-
-async function getConnectedExchanges(userId: string) {
-  const supabase = await createClient();
-  const { data } = await supabase
-    .from("connected_exchanges")
-    .select("exchange_name, exchange_slug")
-    .eq("user_id", userId)
-    .eq("is_active", true);
-  return data ?? [];
-}
+const MOCK_TOTAL      = 47832.50;
+const MOCK_CHANGE     = +1284.20;
+const MOCK_CHANGE_PCT = +2.76;
 
 function fmt(n: number) {
   return n.toLocaleString("en-US", { style: "currency", currency: "USD" });
+}
+
+function fmtPct(n: number) {
+  return (n >= 0 ? "+" : "") + n.toFixed(2) + "%";
 }
 
 export default async function DashboardPage() {
@@ -41,13 +36,49 @@ export default async function DashboardPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/auth/signin");
 
-  const exchanges = await getConnectedExchanges(user.id);
-  const hasExchanges = exchanges.length > 0;
+  const { data: exchanges } = await supabase
+    .from("connected_exchanges")
+    .select("exchange_name, exchange_slug, api_key, api_secret")
+    .eq("user_id", user.id)
+    .eq("is_active", true);
+
+  const hasExchanges = exchanges && exchanges.length > 0;
 
   const displayName =
     user.user_metadata?.full_name?.split(" ")[0] ||
     user.email?.split("@")[0] ||
     "there";
+
+  // Attempt real Alpaca data
+  const alpacaRow = exchanges?.find(
+    (e) => e.exchange_slug === "alpaca" && e.api_key && !e.api_key.startsWith("demo-key")
+  );
+
+  let realPortfolio: { totalValue: number; dayPl: number; dayPlPct: number; positions: { symbol: string; name: string; value: number; unrealizedPlPct: number; up: boolean; exchange: string }[] } | null = null;
+
+  if (alpacaRow?.api_key && alpacaRow?.api_secret) {
+    try {
+      realPortfolio = await fetchAlpacaPortfolio(alpacaRow.api_key, alpacaRow.api_secret);
+    } catch {
+      // fall through to mock
+    }
+  }
+
+  const isLive = realPortfolio !== null;
+
+  const totalValue  = isLive ? realPortfolio!.totalValue  : MOCK_TOTAL;
+  const dayPl       = isLive ? realPortfolio!.dayPl       : MOCK_CHANGE;
+  const dayPlPct    = isLive ? realPortfolio!.dayPlPct    : MOCK_CHANGE_PCT;
+  const topHoldings = isLive
+    ? realPortfolio!.positions.slice(0, 4).map((p) => ({
+        symbol: p.symbol,
+        name: p.name,
+        value: p.value,
+        change: p.unrealizedPlPct,
+        up: p.up,
+        exchange: p.exchange,
+      }))
+    : MOCK_HOLDINGS;
 
   return (
     <div className="p-6 lg:p-8 max-w-7xl mx-auto">
@@ -63,14 +94,23 @@ export default async function DashboardPage() {
 
       {hasExchanges ? (
         <>
-          {/* Demo notice */}
-          <div className="flex items-center gap-2.5 glass rounded-xl px-4 py-3 border border-amber-500/20 bg-amber-500/[0.04] mb-6">
-            <FlaskConical size={15} className="text-amber-400 flex-shrink-0" />
-            <p className="text-amber-300 text-xs">
-              <span className="font-semibold">Demo mode —</span> portfolio values below are sample data.
-              Live sync with exchange APIs is coming soon.
-            </p>
-          </div>
+          {/* Live / demo notice */}
+          {isLive ? (
+            <div className="flex items-center gap-2.5 glass rounded-xl px-4 py-3 border border-emerald-500/20 bg-emerald-500/[0.04] mb-6">
+              <TrendingUp size={15} className="text-emerald-400 flex-shrink-0" />
+              <p className="text-emerald-300 text-xs">
+                <span className="font-semibold">Live data —</span> portfolio synced from your Alpaca account.
+              </p>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2.5 glass rounded-xl px-4 py-3 border border-amber-500/20 bg-amber-500/[0.04] mb-6">
+              <FlaskConical size={15} className="text-amber-400 flex-shrink-0" />
+              <p className="text-amber-300 text-xs">
+                <span className="font-semibold">Demo mode —</span> portfolio values below are sample data.
+                Connect a real Alpaca account to see live data.
+              </p>
+            </div>
+          )}
 
           {/* Stats */}
           <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
@@ -78,27 +118,30 @@ export default async function DashboardPage() {
               <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-3">
                 <DollarSign size={18} className="text-emerald-400" />
               </div>
-              <p className="text-2xl font-bold text-white mb-0.5">{fmt(MOCK_TOTAL)}</p>
+              <p className="text-2xl font-bold text-white mb-0.5">{fmt(totalValue)}</p>
               <p className="text-slate-500 text-xs">Total Portfolio Value</p>
-              <p className="text-emerald-400 text-xs mt-1 flex items-center gap-1">
-                <TrendingUp size={11} /> +{fmt(MOCK_CHANGE)} ({MOCK_CHANGE_PCT}%) today
+              <p className={`text-xs mt-1 flex items-center gap-1 ${dayPl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>
+                {dayPl >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
+                {dayPl >= 0 ? "+" : ""}{fmt(Math.abs(dayPl))} ({fmtPct(dayPlPct)}) today
               </p>
             </div>
             <div className="glass rounded-2xl p-5">
               <div className="w-9 h-9 bg-emerald-500/10 rounded-xl flex items-center justify-center mb-3">
                 <TrendingUp size={18} className="text-emerald-400" />
               </div>
-              <p className="text-2xl font-bold text-white mb-0.5">+{fmt(MOCK_CHANGE)}</p>
+              <p className={`text-2xl font-bold mb-0.5 ${dayPl >= 0 ? "text-white" : "text-rose-400"}`}>
+                {dayPl >= 0 ? "+" : ""}{fmt(Math.abs(dayPl))}
+              </p>
               <p className="text-slate-500 text-xs">Today&apos;s Change</p>
-              <p className="text-emerald-400 text-xs mt-1">+{MOCK_CHANGE_PCT}%</p>
+              <p className={`text-xs mt-1 ${dayPl >= 0 ? "text-emerald-400" : "text-rose-400"}`}>{fmtPct(dayPlPct)}</p>
             </div>
             <div className="glass rounded-2xl p-5">
               <div className="w-9 h-9 bg-violet-500/10 rounded-xl flex items-center justify-center mb-3">
                 <Link2 size={18} className="text-violet-400" />
               </div>
-              <p className="text-2xl font-bold text-white mb-0.5">{exchanges.length}</p>
+              <p className="text-2xl font-bold text-white mb-0.5">{exchanges!.length}</p>
               <p className="text-slate-500 text-xs">Connected Exchanges</p>
-              <p className="text-slate-600 text-xs mt-1">{exchanges.map(e => e.exchange_name).join(", ")}</p>
+              <p className="text-slate-600 text-xs mt-1">{exchanges!.map(e => e.exchange_name).join(", ")}</p>
             </div>
             <div className="glass rounded-2xl p-5">
               <div className="w-9 h-9 bg-amber-500/10 rounded-xl flex items-center justify-center mb-3">
@@ -120,28 +163,32 @@ export default async function DashboardPage() {
                 View all <ArrowRight size={12} />
               </Link>
             </div>
-            <div className="space-y-3">
-              {MOCK_HOLDINGS.map((h) => (
-                <div key={h.symbol} className="flex items-center gap-4">
-                  <div className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
-                    <span className="text-white text-[11px] font-bold">{h.symbol.slice(0, 2)}</span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="text-white text-sm font-medium">{h.symbol}</span>
-                      <span className="text-white text-sm font-medium">{fmt(h.value)}</span>
+            {topHoldings.length === 0 ? (
+              <p className="text-slate-500 text-sm text-center py-4">No positions found.</p>
+            ) : (
+              <div className="space-y-3">
+                {topHoldings.map((h) => (
+                  <div key={h.symbol} className="flex items-center gap-4">
+                    <div className="w-9 h-9 rounded-xl bg-white/[0.06] flex items-center justify-center flex-shrink-0">
+                      <span className="text-white text-[11px] font-bold">{h.symbol.slice(0, 2)}</span>
                     </div>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-slate-500 text-xs">{h.name} · {h.exchange}</span>
-                      <span className={`text-xs flex items-center gap-0.5 ${h.up ? "text-emerald-400" : "text-rose-400"}`}>
-                        {h.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-                        {h.up ? "+" : ""}{h.change}%
-                      </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-white text-sm font-medium">{h.symbol}</span>
+                        <span className="text-white text-sm font-medium">{fmt(h.value)}</span>
+                      </div>
+                      <div className="flex items-center justify-between mt-0.5">
+                        <span className="text-slate-500 text-xs">{h.name} · {h.exchange}</span>
+                        <span className={`text-xs flex items-center gap-0.5 ${h.up ? "text-emerald-400" : "text-rose-400"}`}>
+                          {h.up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+                          {fmtPct(h.change)}
+                        </span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Quick actions */}

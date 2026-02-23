@@ -14,6 +14,7 @@ import {
   CreditCard,
   ChevronLeft,
   ChevronRight,
+  Crown,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -26,11 +27,21 @@ const navItems = [
   { label: "Settings", href: "/dashboard/settings", icon: Settings },
 ];
 
-export default function Sidebar() {
+const TIER_STYLES = {
+  free:       { label: "Free",       color: "text-slate-400",   bg: "bg-slate-500/10" },
+  pro:        { label: "Pro",        color: "text-emerald-400", bg: "bg-emerald-500/15" },
+  enterprise: { label: "Enterprise", color: "text-violet-400",  bg: "bg-violet-500/15" },
+};
+
+type Tier = "free" | "pro" | "enterprise";
+
+export default function Sidebar({ tier = "free" }: { tier?: Tier }) {
   const pathname = usePathname();
   const router = useRouter();
   const [collapsed, setCollapsed] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  const tierStyle = TIER_STYLES[tier] ?? TIER_STYLES.free;
 
   const handleSignOut = async () => {
     setSigningOut(true);
@@ -79,7 +90,7 @@ export default function Sidebar() {
               }`}
             >
               <Icon
-                className={`w-4.5 h-4.5 flex-shrink-0 ${
+                className={`flex-shrink-0 ${
                   active ? "text-emerald-400" : "text-slate-500 group-hover:text-white"
                 }`}
                 size={18}
@@ -90,8 +101,26 @@ export default function Sidebar() {
         })}
       </nav>
 
-      {/* Bottom */}
-      <div className="py-3 px-2 border-t border-white/[0.05] space-y-0.5">
+      {/* Tier badge + Sign out */}
+      <div className="py-3 px-2 border-t border-white/[0.05] space-y-2">
+        {/* Subscription tier */}
+        {!collapsed && (
+          <Link
+            href="/dashboard/billing"
+            className={`flex items-center gap-2 px-3 py-2 rounded-xl ${tierStyle.bg} transition-all hover:opacity-80`}
+          >
+            <Crown size={14} className={tierStyle.color} />
+            <span className={`text-xs font-semibold ${tierStyle.color}`}>
+              {tierStyle.label} Plan
+            </span>
+            {tier === "free" && (
+              <span className="ml-auto text-[10px] text-slate-500 hover:text-slate-400">
+                Upgrade →
+              </span>
+            )}
+          </Link>
+        )}
+
         <button
           onClick={handleSignOut}
           disabled={signingOut}
