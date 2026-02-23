@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { stripe } from "@/lib/stripe";
+import { getStripe } from "@/lib/stripe";
 import Stripe from "stripe";
 
 // Supabase admin client for webhook (bypasses RLS)
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = getStripe().webhooks.constructEvent(body, signature, webhookSecret);
   } catch {
     return NextResponse.json({ error: "Invalid webhook signature." }, { status: 400 });
   }
