@@ -59,13 +59,13 @@ export default function Navbar() {
         {/* Desktop CTAs */}
         <div className="hidden md:flex items-center gap-3">
           <a
-            href="#"
+            href="/auth/signin"
             className="text-slate-400 hover:text-white text-sm transition-colors px-4 py-2"
           >
             Sign in
           </a>
           <a
-            href="#"
+            href="/auth/signup"
             className="bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors duration-200"
           >
             Get started free
@@ -101,7 +101,7 @@ export default function Navbar() {
               </a>
             ))}
             <a
-              href="#"
+              href="/auth/signup"
               className="mt-4 block w-full text-center bg-emerald-500 hover:bg-emerald-400 text-white text-sm font-medium px-5 py-3 rounded-lg transition-colors"
             >
               Get started free
