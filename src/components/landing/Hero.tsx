@@ -217,15 +217,22 @@ export default function Hero() {
             className="flex flex-wrap gap-3 mb-10"
           >
             <a
-              href="#"
-              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-6 py-3.5 rounded-xl transition-all duration-200 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)]"
+              href="/auth/signup"
+              className="flex items-center gap-2 bg-emerald-500 hover:bg-emerald-400 text-white font-semibold px-6 py-3.5 rounded-xl transition-all duration-200 hover:shadow-[0_0_30px_rgba(16,185,129,0.4)] focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
             >
               Start for free
               <ArrowRight className="w-4 h-4" />
             </a>
             <a
+              href="/auth/signup?demo=true"
+              className="flex items-center gap-2 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] text-white font-medium px-6 py-3.5 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-white/20"
+            >
+              <Zap className="w-4 h-4 text-amber-400" />
+              Try live demo
+            </a>
+            <a
               href="#how-it-works"
-              className="flex items-center gap-2 bg-white/[0.06] hover:bg-white/[0.10] border border-white/[0.10] text-white font-medium px-6 py-3.5 rounded-xl transition-all duration-200"
+              className="flex items-center gap-2 text-slate-400 hover:text-white font-medium px-2 py-3.5 transition-all duration-200"
             >
               See how it works
             </a>

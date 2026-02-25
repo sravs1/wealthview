@@ -1,6 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { z } from "zod";
+
+const disconnectSchema = z.object({
+  exchangeSlug: z.string().min(1, "Exchange slug is required"),
+});
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
@@ -12,11 +17,11 @@ export async function POST(request: NextRequest) {
         getAll: () => cookieStore.getAll(),
         setAll: (cookiesToSet) => {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
   const {
@@ -27,10 +32,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { exchangeSlug } = await request.json();
-  if (!exchangeSlug) {
-    return NextResponse.json({ error: "Missing exchangeSlug." }, { status: 400 });
+  const body = await request.json().catch(() => null);
+  const parsed = disconnectSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request body." },
+      { status: 400 },
+    );
   }
+
+  const { exchangeSlug } = parsed.data;
 
   const { error } = await supabase
     .from("connected_exchanges")

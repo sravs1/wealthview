@@ -1,6 +1,16 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { z } from "zod";
+
+const connectSchema = z.object({
+  exchangeSlug: z.string().min(1, "Exchange slug is required"),
+  exchangeName: z.string().min(1, "Exchange name is required"),
+  connectionType: z.string().optional().default("api_key"),
+  apiKey: z.string().min(1, "API key is required"),
+  apiSecret: z.string().min(1, "API secret is required"),
+  apiPassphrase: z.string().optional(),
+});
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
@@ -12,11 +22,11 @@ export async function POST(request: NextRequest) {
         getAll: () => cookieStore.getAll(),
         setAll: (cookiesToSet) => {
           cookiesToSet.forEach(({ name, value, options }) =>
-            cookieStore.set(name, value, options)
+            cookieStore.set(name, value, options),
           );
         },
       },
-    }
+    },
   );
 
   const {
@@ -27,26 +37,31 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json();
-  const { exchangeSlug, exchangeName, connectionType, apiKey, apiSecret, apiPassphrase } = body;
-
-  if (!exchangeSlug || !exchangeName || !apiKey || !apiSecret) {
-    return NextResponse.json({ error: "Missing required fields." }, { status: 400 });
+  const body = await request.json().catch(() => null);
+  const parsed = connectSchema.safeParse(body);
+  if (!parsed.success) {
+    return NextResponse.json(
+      { error: parsed.error.issues[0]?.message ?? "Invalid request body." },
+      { status: 400 },
+    );
   }
+
+  const { exchangeSlug, exchangeName, connectionType, apiKey, apiSecret, apiPassphrase } =
+    parsed.data;
 
   const { error } = await supabase.from("connected_exchanges").upsert(
     {
       user_id: user.id,
       exchange_slug: exchangeSlug,
       exchange_name: exchangeName,
-      connection_type: connectionType ?? "api_key",
+      connection_type: connectionType,
       api_key: apiKey,
       api_secret: apiSecret,
       api_passphrase: apiPassphrase ?? null,
       is_active: true,
       last_synced_at: null,
     },
-    { onConflict: "user_id,exchange_slug" }
+    { onConflict: "user_id,exchange_slug" },
   );
 
   if (error) {
