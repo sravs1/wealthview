@@ -35,6 +35,7 @@ Create a `.env.local` file in the project root:
 | `STRIPE_SECRET_KEY` | ✅ | Stripe secret key |
 | `STRIPE_WEBHOOK_SECRET` | ✅ | Webhook signing secret (`stripe listen --print-secret`) |
 | `RESEND_API_KEY` | ✅ | Resend API key for welcome emails |
+| `OPENROUTER_API_KEY` | ✅ | API key for live AI Insights |
 
 ---
 
